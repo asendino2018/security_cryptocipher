@@ -5,22 +5,13 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import ChaCha20
 import os
 import secrets
-import time
 import magic
 from sqlite_persistence import *
 import zipfile
 from flask import Flask, render_template, request, send_file, redirect, url_for
 from werkzeug.utils import secure_filename
-import psutil
-
-AES_KEY_LENGTH=256
-AES_IV_LENGTH= 128
-
-TRIPLEDES_KEY_LENGTH=192
-TRIPLEDES_IV_LENGTH=128
-
-CHACHA_KEY_LENGTH=256
-CHACHA_NONCE_LENGTH=64
+import resource
+from timeout_decorator import timeout, TimeoutError
 
 #Folder where the files to cipher are saved
 CIPHER_FOLDER = os.path.join(os.getcwd(), "cipher-folder")
@@ -28,22 +19,52 @@ CIPHER_FOLDER = os.path.join(os.getcwd(), "cipher-folder")
 #Folder where the keys to be exported to the user are saved
 EXPORT_FOLDER = os.path.join(os.getcwd(), "export-folder")
 
-#Folder where the files to cipher are saved
-SQLITE_FILE = os.path.join(os.getcwd(), "users.db")
-
 #Global variables
 global username
 username=None
 
+global file_to_download
+file_to_download=None
+
+
+global operation_speed
+operation_speed=None
+
+#Global constants
+AES_KEY_LENGTH=256
+AES_IV_LENGTH= 128
+
+TRIPLEDES_KEY_LENGTH=192
+TRIPLEDES_IV_LENGTH=128
+
+CHACHA_KEY_LENGTH=256
+CHACHA_NONCE_LENGTH=96
+
+MAX_EXECUTION_TIME=13
+
+#Global setters
 def set_username(name):
     global username
     username=name
 
-def file_flush():
+def set_file(file):
+    global file_to_download
+    file_to_download=file
+
+def set_speed(speed):
+    global operation_speed
+    operation_speed=speed
+
+
+def security_flush():
     for filename in os.listdir(CIPHER_FOLDER):
         os.remove(os.path.join(app.config["CIPHER_FOLDER"],filename))
     for filename in os.listdir(EXPORT_FOLDER):
         os.remove(os.path.join(app.config["EXPORT_FOLDER"],filename))
+    set_file(None)
+
+def speed_flush():
+    set_speed(None)
 
 def isPEMfile(filename):
     file_extension=key_extension(filename)
@@ -56,7 +77,7 @@ def file_extension(filename):
     extension = os.path.splitext('.' + file_type.split('/')[-1])[0]
     print(extension)
     if extension == ".octet-stream":
-        extension ='.enc'
+        extension ='.cyp'
     return extension
 
 def decrypt_rename(filename):
@@ -79,18 +100,18 @@ def key_extension(keyfile):
 
 def encrypt_rename(filename):
     try:
-        os.rename(filename,filename+'.enc')
+        os.rename(filename,filename+'.cyp')
     except FileExistsError:
-        os.remove(filename+'.enc')
-        os.rename(filename,filename+'.enc')
-    return(filename+'.enc')
+        os.remove(filename+'.cyp')
+        os.rename(filename,filename+'.cyp')
+    return(filename+'.cyp')
 
 
 def AES_encrypt(input_file, username):
     try:
-        #Starting time to encrypt to calculate the duration and RAM used
-        AES_start_time = time.time()
-        AES_initial_memory=psutil.virtual_memory().used
+        #Starting time to encrypt to calculate the duration
+        AES_start_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
+
         #Get the user AES key and iv to encrypt
         key = get_AES_key(username)
         iv = get_AES_iv(username)
@@ -108,10 +129,9 @@ def AES_encrypt(input_file, username):
         AES_file.close()
         os.remove(input_file)
         AES_output_file=encrypt_rename(AES_output_file)
-        AES_end_time = time.time()
-        AES_final_memory=psutil.virtual_memory().used
-        print(f"AES Encryption time: {AES_end_time - AES_start_time} seconds")
-        print(f"AES RAM Used: {AES_final_memory - AES_initial_memory}")
+        AES_end_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
+        AES_encryption_time= AES_end_time - AES_start_time
+        set_speed(AES_encryption_time)
         return AES_output_file
     except:
         return None
@@ -119,9 +139,8 @@ def AES_encrypt(input_file, username):
 
 def AES_decrypt(input_file, username):
     try:
-        #Starting time to decrypt to calculate the duration and RAM used
-        AES_start_time = time.time()
-        AES_initial_memory=psutil.virtual_memory().used
+        #Starting time to decrypt to calculate the duration
+        AES_start_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
 
         #Get the user AES key and iv to decrypt
         key = get_AES_key(username)
@@ -139,10 +158,9 @@ def AES_decrypt(input_file, username):
         AES_file.close()
         os.remove(input_file)
         AES_output_file=decrypt_rename(AES_output_file)
-        AES_end_time = time.time()
-        AES_final_memory=psutil.virtual_memory().used
-        print(f"AES Decryption time: {AES_end_time - AES_start_time} seconds")
-        print(f"AES RAM Used: {AES_final_memory - AES_initial_memory}")
+        AES_end_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
+        AES_decryption_time= AES_end_time - AES_start_time
+        set_speed(AES_decryption_time)
         return AES_output_file
     except:
         return None
@@ -168,11 +186,11 @@ def verify_AES_length(key,iv):
     else:
         return False
     
+@timeout(MAX_EXECUTION_TIME)    
 def RSA_encrypt(input_file, username, chunk_size=190):
     try:
         #Starting time to encrypt to calculate the duration
-        RSA_start_time = time.time()
-
+        RSA_start_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
         # Load public key and generate a new cipher objetc
         public_key=get_RSA_public_key(username)
         RSA_public_key = RSA.import_key(public_key)
@@ -191,19 +209,21 @@ def RSA_encrypt(input_file, username, chunk_size=190):
                 RSA_ciphertext.write(encrypted_chunk)
         RSA_plaintext.close()
         RSA_ciphertext.close()
-        os.remove(input_file)
         RSA_output_file=encrypt_rename(RSA_output_file)
-        RSA_end_time = time.time()
-        print(f"RSA Encryption time: {RSA_end_time - RSA_start_time} seconds")
+        RSA_end_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
+        RSA_encryption_time= RSA_end_time - RSA_start_time
+        set_speed(RSA_encryption_time)
         return RSA_output_file
+    except TimeoutError:
+        return None
     except:
         return None
     
-    
+@timeout(MAX_EXECUTION_TIME)  
 def RSA_decrypt(input_file, username, chunk_size=256):
     try:
         #Starting time to decrypt to calculate the duration
-        RSA_start_time = time.time()
+        RSA_start_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
 
         # Load private key and generate a new cipher objetc
         private_key= get_RSA_private_key(username)
@@ -223,11 +243,13 @@ def RSA_decrypt(input_file, username, chunk_size=256):
                 RSA_plaintext.write(decrypted_chunk)
         RSA_ciphertext.close()
         RSA_plaintext.close()
-        os.remove(input_file)
         RSA_output_file=decrypt_rename(RSA_output_file)
-        RSA_end_time = time.time()
-        print(f"RSA Decryption time: {RSA_end_time - RSA_start_time} seconds")
+        RSA_end_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
+        RSA_decryption_time= RSA_end_time - RSA_start_time
+        set_speed(RSA_decryption_time)
         return RSA_output_file
+    except TimeoutError:
+        return None
     except:
         return None
     
@@ -251,7 +273,7 @@ def import_RSA_keys(username, private_key, public_key):
 def TripleDES_encrypt(input_file, username):
     try:
         #Starting time to encrypt to calculate the duration
-        TripleDES_start_time = time.time()
+        TripleDES_start_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
 
         #Initialize the TripleDES cipher object in EAX mode of operation
         key = get_TripleDES_key(username)
@@ -268,10 +290,10 @@ def TripleDES_encrypt(input_file, username):
                 data = TripleDES_plaintext.read(1024)
         TripleDES_plaintext.close()
         TripleDES_ciphertext.close()
-        os.remove(input_file)
         TripleDES_output_file=encrypt_rename(TripleDES_output_file)
-        TripleDES_end_time = time.time()
-        print(f"TripleDES Encryption time: {TripleDES_end_time - TripleDES_start_time} seconds")
+        TripleDES_end_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
+        TripleDES_encryption_time= TripleDES_end_time - TripleDES_start_time
+        set_speed(TripleDES_encryption_time)
         return TripleDES_output_file
     except:
         return None
@@ -279,7 +301,7 @@ def TripleDES_encrypt(input_file, username):
 def TripleDES_decrypt(input_file, username):
     try:
         #Starting time to decrypt to calculate the duration
-        TripleDES_start_time = time.time()
+        TripleDES_start_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
 
         #Initialize the TripleDES cipher object in EAX mode of operation
         key = get_TripleDES_key(username)
@@ -296,10 +318,10 @@ def TripleDES_decrypt(input_file, username):
                 data = TripleDES_ciphertext.read(1024)
         TripleDES_ciphertext.close()
         TripleDES_plaintext.close()
-        os.remove(input_file)
         TripleDES_output_file=decrypt_rename(TripleDES_output_file)
-        TripleDES_end_time = time.time()
-        print(f"TripleDES Decryption time: {TripleDES_end_time - TripleDES_start_time} seconds")
+        TripleDES_end_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
+        TripleDES_decryption_time= TripleDES_end_time - TripleDES_start_time
+        set_speed(TripleDES_decryption_time)
         return TripleDES_output_file
     except:
         return None
@@ -319,22 +341,6 @@ def import_TripleDES_keys(username, key, iv):
     else:
         print("TripleDES import keys error 2")
 
-
-def import_AES_keys(username, key, iv):
-    if(key_extension(key)=='.pem' and key_extension(iv)=='.pem'):
-        with open(key,'rb') as AES_key_file:
-            AES_key=AES_key_file.read()
-            AES_key_file.close()
-        with open(iv,'rb') as AES_iv_file:
-            AES_iv=AES_iv_file.read()
-            AES_iv_file.close()
-        if(verify_AES_length(AES_key,AES_iv)):
-            insert_AES_keys(username, AES_key, AES_iv)
-        else:
-            print("AES import keys error")
-    else:
-        print("AES import keys error 2")
-
 def verify_TripleDES_length(key,iv):
     if(len(key)== TRIPLEDES_KEY_LENGTH//8  and len(iv)==TRIPLEDES_IV_LENGTH//8):
         return True
@@ -344,7 +350,7 @@ def verify_TripleDES_length(key,iv):
 def ChaCha_encrypt(input_file, username):
     try:
         #Starting time to encrypt to calculate the duration
-        ChaCha_start_time = time.time()
+        ChaCha_start_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
 
         # Create the cipher object
         key= get_ChaCha20_key(username)
@@ -363,10 +369,10 @@ def ChaCha_encrypt(input_file, username):
                 ChaCha_ciphertext.write(ciphertext)
         ChaCha_plaintext.close()
         ChaCha_ciphertext.close()
-        os.remove(input_file)
         ChaCha_output_file=encrypt_rename(ChaCha_output_file)
-        ChaCha_end_time = time.time()
-        print(f"ChaCha Encryption time: {ChaCha_end_time - ChaCha_start_time} seconds")
+        ChaCha_end_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
+        ChaCha_encryption_time= ChaCha_end_time - ChaCha_start_time
+        set_speed(ChaCha_encryption_time)
         return ChaCha_output_file
     except:
         return None
@@ -374,7 +380,7 @@ def ChaCha_encrypt(input_file, username):
 def ChaCha_decrypt(input_file, username):
     try:
         #Starting time to decrypt to calculate the duration
-        ChaCha_start_time = time.time()
+        ChaCha_start_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
 
         # Create the cipher object
         key= get_ChaCha20_key(username)
@@ -393,10 +399,10 @@ def ChaCha_decrypt(input_file, username):
                 ChaCha_plaintext.write(plaintext)
         ChaCha_ciphertext.close()
         ChaCha_plaintext.close()
-        os.remove(input_file)
         ChaCha_output_file=decrypt_rename(ChaCha_output_file)
-        ChaCha_end_time = time.time()
-        print(f"ChaCha Decryption time: {ChaCha_end_time - ChaCha_start_time} seconds")
+        ChaCha_end_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
+        ChaCha_decryption_time= ChaCha_end_time - ChaCha_start_time
+        set_speed(ChaCha_decryption_time)
         return ChaCha_output_file
     except:
         return None
@@ -489,7 +495,7 @@ def create_keys(username, cipher):
 
     elif cipher ==4: #Creates ChaCha20 keys
         ChaCha20_key = secrets.token_bytes(32) # Generates a 32-byte (256-bit) random secure value for the ChaCha20 key
-        ChaCha_nonce = secrets.token_bytes(8) # Generates a 8-byte (64-bit) random secure value for the ChaCha20 nonce
+        ChaCha_nonce = secrets.token_bytes(12) # Generates a 12-byte (96-bit) random secure value for the ChaCha20 nonce
         insert_ChaCha20_keys(username, ChaCha20_key,ChaCha_nonce)
 
 def create_keys_zip(zip_filename, first_file, second_file):
@@ -555,7 +561,7 @@ def export_keys(username, cipher):
         zip_path= os.path.join(app.config["EXPORT_FOLDER"],file_path)
         keys_zip=create_keys_zip(zip_path,'ChaCha20_key.pem','ChaCha20_nonce.pem')
     return keys_zip
-# al.sendino, Tidus1234~, Rauru
+
 app = Flask(__name__)
 app.config["CIPHER_FOLDER"] = CIPHER_FOLDER
 app.config["EXPORT_FOLDER"] = EXPORT_FOLDER
@@ -563,14 +569,25 @@ app.config["EXPORT_FOLDER"] = EXPORT_FOLDER
 # Principal page with all the options
 @app.route('/')
 def principal():
-    file_flush()
+    security_flush()
+    speed_flush()
     if not username:
         return redirect(url_for('login'))
     return render_template("principal.html")
 
+# Project general information
+@app.route('/about')
+def about():
+    security_flush()
+    speed_flush()
+    if not username:
+        return redirect(url_for('login'))
+    return render_template("about.html")
+
 @app.route('/login', methods=['GET','POST'])
 def login():
-    file_flush()
+    security_flush()
+    speed_flush()
     if username:
         return redirect(url_for('principal'))
     if request.method == "POST":
@@ -585,7 +602,8 @@ def login():
 
 @app.route('/register', methods=['GET','POST'])
 def register():
-    file_flush()
+    security_flush()
+    speed_flush()
     if username:
         return redirect(url_for('principal'))
     if request.method == "POST":
@@ -603,7 +621,8 @@ def register():
 
 @app.route('/logout')
 def logout():
-    file_flush()
+    security_flush()
+    speed_flush()
     if not username:
         return redirect(url_for('login'))
     set_username(None)
@@ -613,17 +632,18 @@ def logout():
 # Key manager page
 @app.route('/keymanager')
 def keymanager():
-    file_flush()
+    security_flush()
+    speed_flush()
     if not username:
         return redirect(url_for('login'))
     return render_template('key-manager.html')
-
 
 # Cipher page
 @app.route('/cipher', methods=['GET','POST'])
 
 def cipher():
-    file_flush()
+    security_flush()
+    speed_flush()
     if not username:
         return redirect(url_for('login'))
     if request.method == "POST":
@@ -675,16 +695,30 @@ def cipher():
             return render_template('cipher.html',  errorMessage="Operation unknown, please try again")
         if not new_file:
             return render_template('cipher.html',  errorMessage="Unknown error in cryptographic operation")
-        return send_file(new_file, as_attachment=True) #Send file to user
+        set_file(new_file)
+        return redirect(url_for('results'))
 
     return render_template('cipher.html')
+
+
+# Cipher preparation page
+@app.route('/results', methods=['GET','POST'])
+def results():
+    if not username:
+        return redirect(url_for('login'))
+    if not file_to_download or not operation_speed:
+        return redirect(url_for('principal'))
+    if request.method == "POST":
+        return send_file(file_to_download,as_attachment=True)
+    return render_template('results.html',speed_value=operation_speed)
 
 
 # Import keys page
 @app.route('/import', methods=['GET','POST'])
 
 def import_key():
-    file_flush()
+    security_flush()
+    speed_flush()
     if not username:
         return redirect(url_for('login'))
     if request.method == "POST":
@@ -725,7 +759,8 @@ def import_key():
 @app.route('/export', methods=['GET','POST'])
 
 def export_key():
-    file_flush()
+    security_flush()
+    speed_flush()
     if not username:
         return redirect(url_for('login'))
     if request.method == "POST":
@@ -750,7 +785,8 @@ def export_key():
 @app.route('/create', methods=['GET','POST'])
 
 def create_key():
-    file_flush()
+    security_flush()
+    speed_flush()
     if not username:
         return redirect(url_for('login'))
     if request.method == "POST":
