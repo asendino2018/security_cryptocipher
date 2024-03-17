@@ -35,7 +35,7 @@
           <div class="u-custom-menu u-nav-container">
             <ul class="u-custom-font u-font-roboto-condensed u-nav u-unstyled u-nav-1"><li class="u-nav-item"><a class="u-button-style u-nav-link u-text-active-custom-color-2 u-text-hover-custom-color-3" href="/cipher" style="padding: 10px 27px;">Cipher</a>
 </li><li class="u-nav-item"><a class="u-button-style u-nav-link u-text-active-custom-color-2 u-text-hover-custom-color-3" href="keymanager" style="padding: 10px 27px;">Key Manager</a>
-</li><li class="u-nav-item"><a class="u-button-style u-nav-link u-text-active-custom-color-2 u-text-hover-custom-color-3" style="padding: 10px 27px;">About us</a>
+</li><li class="u-nav-item">            <a class="u-button-style u-nav-link u-text-active-custom-color-2 u-text-hover-custom-color-3" href="/about" style="padding: 10px 27px;">About us</a>
 </li><li class="u-nav-item"><a class="u-button-style u-nav-link u-text-active-custom-color-2 u-text-hover-custom-color-3" href="/" style="padding: 10px 27px;">Log out</a>
 </li></ul>
           </div>
@@ -66,14 +66,16 @@
           <form method="POST" enctype="multipart/form-data" name="form" style="padding: 17px;">
             <span class="u-file-icon u-icon u-icon-rectangle u-text-palette-4-dark-1 u-icon-1"><img src="{{ url_for('static', filename='images/1.png')}}" alt=""></span>
             <p class="u-custom-font u-font-roboto-condensed u-large-text u-text u-text-default u-text-variant u-text-3">Select the key files:</p>
-            <label class="u-align-center u-border-2 u-border-custom-color-2 u-btn u-btn-round u-button-style u-custom-font u-font-roboto-condensed u-hover-custom-color-2 u-none u-radius-50 u-btn-1">
+            <label for="clave" class="u-align-center u-border-2 u-border-custom-color-2 u-btn u-btn-round u-button-style u-custom-font u-font-roboto-condensed u-hover-custom-color-2 u-none u-radius-50 u-btn-1">
               Drop key file
-              <input type="file" style="display: none;" accept=".pem" name="keyfile"/>
             </label>
-            <label class="u-align-center u-border-2 u-border-custom-color-2 u-btn u-btn-round u-button-style u-custom-font u-font-roboto-condensed u-hover-custom-color-2 u-none u-radius-50 u-btn-1">
+            <input type="file" id="clave" style="display: none;" accept=".pem" name="keyfile" onchange="mostrarNombreClave(this)">
+            <p id="nombre-clave" style="font-family: Roboto Condensed, sans-serif;"></p>
+            <label for="iv" class="u-align-center u-border-2 u-border-custom-color-2 u-btn u-btn-round u-button-style u-custom-font u-font-roboto-condensed u-hover-custom-color-2 u-none u-radius-50 u-btn-1">
               Drop iv/nonce file
-              <input type="file" style="display: none;" accept=".pem" name="ivnoncefile"/>
             </label>
+            <input type="file" id="iv" style="display: none;" accept=".pem" name="ivnoncefile" onchange="mostrarNombreIV(this)">
+            <p id="nombre-iv" style="font-family: Roboto Condensed, sans-serif;"></p>
             <span class="u-file-icon u-icon u-icon-rectangle u-text-palette-4-dark-1 u-icon-2"><img src="{{ url_for('static', filename='images/2.png')}}" alt=""></span>
             <p class="u-custom-font u-font-roboto-condensed u-large-text u-text u-text-default u-text-variant u-text-3">Select the algorithm:</p>
             <div class="u-form-group u-form-input-layout-horizontal u-form-radiobutton u-label-top u-form-group-2">
@@ -112,9 +114,31 @@
     
     <footer class="u-align-center u-clearfix u-footer u-grey-80 u-footer" id="sec-9f86">
       <div class="u-clearfix u-sheet u-sheet-1">
-        <p class="u-text u-text-1">More information about the project in my <a class="u-active-none u-border-none u-btn u-button-link u-button-style u-hover-none u-none u-text-palette-1-base u-btn-1" href="https://github.com">GitHub</a>
+        <p class="u-text u-text-1">More information about the project in my <a class="u-active-none u-border-none u-btn u-button-link u-button-style u-hover-none u-none u-text-palette-1-base u-btn-1" href="https://github.com/asendino2018/security_cryptocipher/asendino2018/security_cryptocipher">GitHub</a>
         </p>
       </div>
     </footer>
-  
+    <script>
+      function mostrarNombreClave(input) {
+          const nombreClave = input.files[0].name;
+          const mensaje = document.getElementById('nombre-clave');
+          mensaje.textContent = `${nombreClave}`;
+          mensaje.style.fontFamily = 'Roboto Condensed, sans-serif';
+          mensaje.style.color='#19a8b6'; 
+          mensaje.style.fontSize =  '16px';
+          mensaje.style.fontWeight = 'bold';
+      }
+  </script>
+
+<script>
+  function mostrarNombreIV(input) {
+      const nombreIV = input.files[0].name;
+      const mensaje = document.getElementById('nombre-iv');
+      mensaje.textContent = `${nombreIV}`;
+      mensaje.style.fontFamily = 'Roboto Condensed, sans-serif';
+      mensaje.style.color='#19a8b6'; 
+      mensaje.style.fontSize =  '16px';
+      mensaje.style.fontWeight = 'bold';
+  }
+</script>
 </body></html>

@@ -53,7 +53,8 @@ def set_file(file):
 
 def set_speed(speed):
     global operation_speed
-    operation_speed=speed
+    if speed:
+        operation_speed="{:.6f}".format(speed)
 
 
 def security_flush():
@@ -186,11 +187,11 @@ def verify_AES_length(key,iv):
     else:
         return False
     
-@timeout(MAX_EXECUTION_TIME)    
 def RSA_encrypt(input_file, username, chunk_size=190):
     try:
         #Starting time to encrypt to calculate the duration
         RSA_start_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
+
         # Load public key and generate a new cipher objetc
         public_key=get_RSA_public_key(username)
         RSA_public_key = RSA.import_key(public_key)
@@ -209,17 +210,16 @@ def RSA_encrypt(input_file, username, chunk_size=190):
                 RSA_ciphertext.write(encrypted_chunk)
         RSA_plaintext.close()
         RSA_ciphertext.close()
+        os.remove(input_file)
         RSA_output_file=encrypt_rename(RSA_output_file)
         RSA_end_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
-        RSA_encryption_time= RSA_end_time - RSA_start_time
+        RSA_encryption_time=RSA_end_time - RSA_start_time
         set_speed(RSA_encryption_time)
         return RSA_output_file
-    except TimeoutError:
-        return None
     except:
         return None
     
-@timeout(MAX_EXECUTION_TIME)  
+    
 def RSA_decrypt(input_file, username, chunk_size=256):
     try:
         #Starting time to decrypt to calculate the duration
@@ -243,13 +243,12 @@ def RSA_decrypt(input_file, username, chunk_size=256):
                 RSA_plaintext.write(decrypted_chunk)
         RSA_ciphertext.close()
         RSA_plaintext.close()
+        os.remove(input_file)
         RSA_output_file=decrypt_rename(RSA_output_file)
         RSA_end_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
-        RSA_decryption_time= RSA_end_time - RSA_start_time
+        RSA_decryption_time=RSA_end_time - RSA_start_time
         set_speed(RSA_decryption_time)
         return RSA_output_file
-    except TimeoutError:
-        return None
     except:
         return None
     
@@ -290,6 +289,7 @@ def TripleDES_encrypt(input_file, username):
                 data = TripleDES_plaintext.read(1024)
         TripleDES_plaintext.close()
         TripleDES_ciphertext.close()
+        os.remove(input_file)
         TripleDES_output_file=encrypt_rename(TripleDES_output_file)
         TripleDES_end_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
         TripleDES_encryption_time= TripleDES_end_time - TripleDES_start_time
@@ -318,6 +318,7 @@ def TripleDES_decrypt(input_file, username):
                 data = TripleDES_ciphertext.read(1024)
         TripleDES_ciphertext.close()
         TripleDES_plaintext.close()
+        os.remove(input_file)
         TripleDES_output_file=decrypt_rename(TripleDES_output_file)
         TripleDES_end_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
         TripleDES_decryption_time= TripleDES_end_time - TripleDES_start_time
@@ -369,6 +370,7 @@ def ChaCha_encrypt(input_file, username):
                 ChaCha_ciphertext.write(ciphertext)
         ChaCha_plaintext.close()
         ChaCha_ciphertext.close()
+        os.remove(input_file)
         ChaCha_output_file=encrypt_rename(ChaCha_output_file)
         ChaCha_end_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
         ChaCha_encryption_time= ChaCha_end_time - ChaCha_start_time
@@ -399,6 +401,7 @@ def ChaCha_decrypt(input_file, username):
                 ChaCha_plaintext.write(plaintext)
         ChaCha_ciphertext.close()
         ChaCha_plaintext.close()
+        os.remove(input_file)
         ChaCha_output_file=decrypt_rename(ChaCha_output_file)
         ChaCha_end_time = resource.getrusage(resource.RUSAGE_SELF).ru_utime
         ChaCha_decryption_time= ChaCha_end_time - ChaCha_start_time
@@ -696,20 +699,29 @@ def cipher():
         if not new_file:
             return render_template('cipher.html',  errorMessage="Unknown error in cryptographic operation")
         set_file(new_file)
-        return redirect(url_for('results'))
+        return redirect(url_for('prepare'))
 
     return render_template('cipher.html')
 
 
 # Cipher preparation page
-@app.route('/results', methods=['GET','POST'])
-def results():
+@app.route('/prepare', methods=['GET','POST'])
+def prepare():
     if not username:
         return redirect(url_for('login'))
     if not file_to_download or not operation_speed:
         return redirect(url_for('principal'))
     if request.method == "POST":
         return send_file(file_to_download,as_attachment=True)
+    return render_template('prepare.html')
+
+@app.route('/results')
+def results():
+    print("Holawaaa")
+    if not username:
+        return redirect(url_for('login'))
+    if not file_to_download or not operation_speed:
+        return redirect(url_for('principal'))
     return render_template('results.html',speed_value=operation_speed)
 
 
