@@ -1,0 +1,5 @@
+Flask==2.3.2
+psutil==5.9.5
+pycryptodome==3.18.0
+python_magic==0.4.27
+Werkzeug==2.3.4
