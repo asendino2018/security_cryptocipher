@@ -1,9 +1,10 @@
 # Secure Cryptocipher Installation
 
-`git clone https://github.com/asendino2018/security_cryptocipher.git`
+<code>git clone https://github.com/asendino2018/security_cryptocipher.git</code>
 
-`pip install -r requirements.txt`
+<code>pip install -r requirements.txt</code>
 
-`python3 main.py`
+<code>python3 main.py</code>
 
-`https://192.168.1.149:4270`
+<code>https://192.168.1.149:4270</code>
+
