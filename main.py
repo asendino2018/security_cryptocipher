@@ -176,10 +176,13 @@ def import_AES_keys(username, key, iv):
             AES_iv_file.close()
         if(verify_AES_length(AES_key,AES_iv)):
             insert_AES_keys(username, AES_key, AES_iv)
+            return True
         else:
-            print("AES import keys error")
+            print("AES import keys error due to the length")
+            return False
     else:
-        print("AES import keys error 2")
+        print("AES import keys error due to the extension")
+        return False
 
 def verify_AES_length(key,iv):
     if(len(key)== AES_KEY_LENGTH//8  and len(iv)==AES_IV_LENGTH//8):
@@ -265,8 +268,10 @@ def import_RSA_keys(username, private_key, public_key):
             RSA_public_key=RSA_public_key_file.read()
             RSA_public_key_file.close()
         insert_RSA_keys(username,RSA_public_key,RSA_private_key)
+        return True
     else:
         print("RSA import fail")
+        return False
         
 
 def TripleDES_encrypt(input_file, username):
@@ -337,10 +342,13 @@ def import_TripleDES_keys(username, key, iv):
             TripleDES_iv_file.close()
         if(verify_TripleDES_length(TripleDES_key,TripleDES_iv)):
             insert_TripleDES_keys(username, TripleDES_key, TripleDES_iv)
+            return True
         else:
             print("TripleDES import keys error")
+            return False
     else:
         print("TripleDES import keys error 2")
+        return False
 
 def verify_TripleDES_length(key,iv):
     if(len(key)== TRIPLEDES_KEY_LENGTH//8  and len(iv)==TRIPLEDES_IV_LENGTH//8):
@@ -420,10 +428,13 @@ def import_ChaCha20_keys(username, key, nonce):
             ChaCha20_nonce_file.close()
         if(verify_ChaCha_length(ChaCha20_key,ChaCha20_nonce)):
             insert_ChaCha20_keys(username, ChaCha20_key, ChaCha20_nonce)
+            return True
         else:
             print("ChaCha import error 1")
+            return False
     else:
         print("ChaCha import keys error 2")
+        return False
 
 def verify_ChaCha_length(key,nonce):
     if(len(key)== CHACHA_KEY_LENGTH//8  and len(nonce)==CHACHA_NONCE_LENGTH//8):
@@ -750,17 +761,23 @@ def import_key():
         iv_nonce_file.save(ivnonce)
         if isPEMfile(key) and isPEMfile(ivnonce):
             if selected_algorithm=='AES': 
-                import_AES_keys(username,key,ivnonce) #Import new AES keys for the user
+                correct_import=import_AES_keys(username,key,ivnonce) #Import new AES keys for the user
             elif selected_algorithm=='RSA':
-                import_RSA_keys(username,key,ivnonce) #Import new RSA keys for the user
+                correct_import=import_RSA_keys(username,key,ivnonce) #Import new RSA keys for the user
             elif selected_algorithm=='TripleDES':
-                import_TripleDES_keys(username,key,ivnonce) #Import TripleDES keys for the user
+                correct_import=import_TripleDES_keys(username,key,ivnonce) #Import TripleDES keys for the user
             elif selected_algorithm=='ChaCha':
-                import_ChaCha20_keys(username,key,ivnonce) #Import ChaCha keys for the user
+                correct_import=import_ChaCha20_keys(username,key,ivnonce) #Import ChaCha keys for the user
             else: #If the algorithm is not correct            #Delete the files from the server
                 os.remove(key)
                 os.remove(ivnonce)
                 return render_template('import.html',  errorMessage="Algorithm unknown, please choose a real algorithm")
+            if(correct_import):
+                print("Holiwii")
+                return redirect(url_for('principal'))
+            else:
+                return render_template('import.html',  errorMessage="Something went wrong, please try again")
+            
         else:
             os.remove(key)
             os.remove(ivnonce)
