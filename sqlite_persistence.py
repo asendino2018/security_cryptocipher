@@ -1,22 +1,35 @@
 import hashlib
+import re
 from pysqlcipher3 import dbapi2 as sqlite
 
-user_key='r2ApN7HkZy4*'
-keys_key='7^Ru@0ey08#s'
+
+def get_keys_key():
+    with open('database-keys/keys_key.txt', 'r') as key_file:
+        key = key_file.read()
+    key_file.close()
+    return key
+
+def get_user_key():
+    with open('database-keys/user_key.txt', 'r') as key_file:
+        key = key_file.read()
+    key_file.close()
+    return key
 
 def insert_AES_keys(username, AES_key, AES_iv):
-    conn = sqlite.connect('criptocipher_databases/keys.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_keys.db')
     nick=get_user_nickname(username)
     cursor = conn.cursor()
+    keys_key=get_keys_key()
     cursor.execute(f"PRAGMA key = '{keys_key}';")
     cursor.execute('UPDATE cipher_keys SET AES_key=?, AES_iv=? WHERE username = ?;',(AES_key, AES_iv, nick))
     conn.commit()
     conn.close()
 
 def get_AES_key(username):
-    conn = sqlite.connect('criptocipher_databases/keys.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_keys.db')
     cursor = conn.cursor()
     nick=get_user_nickname(username)
+    keys_key=get_keys_key()
     cursor.execute(f"PRAGMA key = '{keys_key}';")
     cursor.execute('SELECT AES_key from cipher_keys WHERE username = ?;',(nick,))
     AES_key = cursor.fetchone()
@@ -25,9 +38,10 @@ def get_AES_key(username):
 
 
 def get_AES_iv(username):
-    conn = sqlite.connect('criptocipher_databases/keys.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_keys.db')
     cursor = conn.cursor()
     nick=get_user_nickname(username)
+    keys_key=get_keys_key()
     cursor.execute(f"PRAGMA key = '{keys_key}';")
     cursor.execute('SELECT AES_iv from cipher_keys WHERE username = ?;',(nick,))
     AES_iv = cursor.fetchone()
@@ -35,18 +49,20 @@ def get_AES_iv(username):
     return AES_iv[0]
 
 def insert_RSA_keys(username,RSA_public_key,RSA_private_key):
-    conn = sqlite.connect('criptocipher_databases/keys.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_keys.db')
     cursor = conn.cursor()
     nick=get_user_nickname(username)
+    keys_key=get_keys_key()
     cursor.execute(f"PRAGMA key = '{keys_key}';")
     cursor.execute('UPDATE cipher_keys SET RSA_public_key=?, RSA_private_key=? WHERE username = ?;',(RSA_public_key, RSA_private_key, nick))
     conn.commit()
     conn.close()
 
 def get_RSA_public_key(username):
-    conn = sqlite.connect('criptocipher_databases/keys.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_keys.db')
     cursor = conn.cursor()
     nick=get_user_nickname(username)
+    keys_key=get_keys_key()
     cursor.execute(f"PRAGMA key = '{keys_key}';")
     cursor.execute('SELECT RSA_public_key from cipher_keys WHERE username = ?;',(nick,))
     RSA_public_key = cursor.fetchone()
@@ -55,9 +71,10 @@ def get_RSA_public_key(username):
 
 
 def get_RSA_private_key(username):
-    conn = sqlite.connect('criptocipher_databases/keys.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_keys.db')
     cursor = conn.cursor()
     nick=get_user_nickname(username)
+    keys_key=get_keys_key()
     cursor.execute(f"PRAGMA key = '{keys_key}';")
     cursor.execute('SELECT RSA_private_key from cipher_keys WHERE username = ?;',(nick,))
     RSA_private_key = cursor.fetchone()
@@ -65,18 +82,20 @@ def get_RSA_private_key(username):
     return RSA_private_key[0]
 
 def insert_TripleDES_keys(username, TripleDES_key, TripleDES_iv):
-    conn = sqlite.connect('criptocipher_databases/keys.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_keys.db')
     cursor = conn.cursor()
     nick=get_user_nickname(username)
+    keys_key=get_keys_key()
     cursor.execute(f"PRAGMA key = '{keys_key}';")
     cursor.execute('UPDATE cipher_keys SET TripleDES_key=?, TripleDES_iv=? WHERE username = ?;',(TripleDES_key, TripleDES_iv, nick))
     conn.commit()
     conn.close()
 
 def get_TripleDES_key(username):
-    conn = sqlite.connect('criptocipher_databases/keys.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_keys.db')
     cursor = conn.cursor()
     nick=get_user_nickname(username)
+    keys_key=get_keys_key()
     cursor.execute(f"PRAGMA key = '{keys_key}';")
     cursor.execute('SELECT TripleDES_key from cipher_keys WHERE username = ?;',(nick,))
     TripleDES_key = cursor.fetchone()
@@ -85,9 +104,10 @@ def get_TripleDES_key(username):
 
 
 def get_TripleDES_iv(username):
-    conn = sqlite.connect('criptocipher_databases/keys.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_keys.db')
     cursor = conn.cursor()
     nick=get_user_nickname(username)
+    keys_key=get_keys_key()
     cursor.execute(f"PRAGMA key = '{keys_key}';")
     cursor.execute('SELECT TripleDES_iv from cipher_keys WHERE username = ?;',(nick,))
     TripleDES_iv = cursor.fetchone()
@@ -95,18 +115,20 @@ def get_TripleDES_iv(username):
     return TripleDES_iv[0]
 
 def insert_ChaCha20_keys(username, ChaCha20_key, ChaCha20_nonce):
-    conn = sqlite.connect('criptocipher_databases/keys.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_keys.db')
     cursor = conn.cursor()
     nick=get_user_nickname(username)
+    keys_key=get_keys_key()
     cursor.execute(f"PRAGMA key = '{keys_key}';")
     cursor.execute('UPDATE cipher_keys SET ChaCha20_key=?, ChaCha20_nonce=? WHERE username = ?;',(ChaCha20_key, ChaCha20_nonce, nick))
     conn.commit()
     conn.close()
 
 def get_ChaCha20_key(username):
-    conn = sqlite.connect('criptocipher_databases/keys.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_keys.db')
     cursor = conn.cursor()
     nick=get_user_nickname(username)
+    keys_key=get_keys_key()
     cursor.execute(f"PRAGMA key = '{keys_key}';")
     cursor.execute('SELECT ChaCha20_key from cipher_keys WHERE username = ?;',(nick,))
     ChaCha20_key = cursor.fetchone()
@@ -115,9 +137,10 @@ def get_ChaCha20_key(username):
 
 
 def get_ChaCha20_nonce(username):
-    conn = sqlite.connect('criptocipher_databases/keys.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_keys.db')
     cursor = conn.cursor()
     nick=get_user_nickname(username)
+    keys_key=get_keys_key()
     cursor.execute(f"PRAGMA key = '{keys_key}';")
     cursor.execute('SELECT ChaCha20_nonce from cipher_keys WHERE username = ?;',(nick,))
     ChaCha20_nonce = cursor.fetchone()
@@ -125,8 +148,9 @@ def get_ChaCha20_nonce(username):
     return ChaCha20_nonce[0]
 
 def exists_username(username):
-    conn = sqlite.connect('criptocipher_databases/users.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_users.db')
     cursor = conn.cursor()
+    user_key=get_user_key()
     cursor.execute(f"PRAGMA key = '{user_key}';")
     username_hashed = hashlib.sha256(username.encode('utf-8')).hexdigest()
     cursor.execute('SELECT COUNT(*) FROM cipher_users WHERE username =?;',(username_hashed,))
@@ -135,8 +159,9 @@ def exists_username(username):
     return result[0] > 0
 
 def exists_nickname(nickname):
-    conn = sqlite.connect('criptocipher_databases/users.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_users.db')
     cursor = conn.cursor()
+    user_key=get_user_key()
     cursor.execute(f"PRAGMA key = '{user_key}';")
     nickname_hashed = hashlib.sha256(nickname.encode('utf-8')).hexdigest()
     cursor.execute('SELECT COUNT(*) FROM cipher_users WHERE nickname =?;',(nickname_hashed,))
@@ -145,8 +170,9 @@ def exists_nickname(nickname):
     return result[0] > 0
 
 def verify_credentials(username, password):
-    conn = sqlite.connect('criptocipher_databases/users.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_users.db')
     cursor = conn.cursor()
+    user_key=get_user_key()
     cursor.execute(f"PRAGMA key = '{user_key}';")
     username_hashed = hashlib.sha256(username.encode('utf-8')).hexdigest()
     password_hashed = hashlib.sha256(password.encode('utf-8')).hexdigest()
@@ -157,8 +183,9 @@ def verify_credentials(username, password):
 
 
 def get_user_nickname(username):
-    conn = sqlite.connect('criptocipher_databases/users.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_users.db')
     cursor = conn.cursor()
+    user_key=get_user_key()
     cursor.execute(f"PRAGMA key = '{user_key}';")
     username_hashed = hashlib.sha256(username.encode('utf-8')).hexdigest()
     cursor.execute('SELECT nickname from cipher_users WHERE username = ?;',(username_hashed,))
@@ -167,8 +194,9 @@ def get_user_nickname(username):
     return nickname[0]
 
 def insert_user(username, password, nickname):
-    conn = sqlite.connect('criptocipher_databases/users.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_users.db')
     cursor = conn.cursor()
+    user_key=get_user_key()
     cursor.execute(f"PRAGMA key = '{user_key}';")
     username_hashed = hashlib.sha256(username.encode('utf-8')).hexdigest()
     password_hashed = hashlib.sha256(password.encode('utf-8')).hexdigest()
@@ -177,8 +205,9 @@ def insert_user(username, password, nickname):
     conn.commit()
     conn.close()
     
-    conn = sqlite.connect('criptocipher_databases/keys.db')
+    conn = sqlite.connect('cryptocipher-databases/cipher_keys.db')
     cursor = conn.cursor()
+    keys_key=get_keys_key()
     cursor.execute(f"PRAGMA key = '{keys_key}';")
     cursor.execute('INSERT INTO cipher_keys (username) VALUES (?);',(nickname_hashed,))
     conn.commit()
